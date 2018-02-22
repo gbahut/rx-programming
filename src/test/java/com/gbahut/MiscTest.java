@@ -7,6 +7,8 @@ import rx.Observer;
 import rx.Subscriber;
 
 import java.time.DayOfWeek;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -163,7 +165,8 @@ public class MiscTest
         SECONDS.sleep(1);
     }
 
-    private Observable<String> stream(int initialDelay, int interval, String name)
+    private Observable<String> stream(int initialDelay, int interval,
+                                      String name)
     {
         return Observable
             .interval(initialDelay, interval, MILLISECONDS)
@@ -173,5 +176,63 @@ public class MiscTest
             .doOnUnsubscribe(() ->
                                  logger.info("Unsubscribe from " + name));
 
+    }
+
+    /**
+     * scan() takes two parameters: the last generated value (known as the
+     * accumulator) and current value from upstream Observable.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void scanTest()
+        throws InterruptedException
+    {
+
+        Observable.range(1, 4)
+                  .doOnNext(i -> logger.info("Emitted {}", i))
+                  .scan(0, (acc, i) -> acc += i)
+                  .subscribe(event -> logger.info("GOT {}", event));
+    }
+
+    /**
+     * reduce do not care about intermediate results, just the final one.
+     * if your sequence is infinite, scan() keeps emitting events for each
+     * upstream event, whereas reduce() will never emit any event.
+     */
+    @Test
+    public void reduceTest()
+    {
+        Observable.range(1, 5)
+                  .reduce(0, (acc, i) -> acc += i)
+                  .subscribe(singleEvent -> logger.info("GOT {}", singleEvent));
+    }
+
+    /**
+     * Collect: Reduction with Mutable Accumulator
+     * toList: operator to simplify collect when accumulating to list.
+     */
+    @Test
+    public void collectTest()
+    {
+        Observable.range(1, 10)
+                  .collect(ArrayList::new, List::add)
+                  .subscribe(singleEvent -> logger.info("GOT {}", singleEvent));
+
+        Observable.range(1, 10).toList()
+                  .subscribe(singleEvent -> logger.info("GOT {}", singleEvent));
+    }
+
+    @Test
+    public void singleTest()
+    {
+        // This is OK
+        Observable.just(1).single()
+                  .subscribe(singleEvent -> logger.info("GOT {}", singleEvent));
+
+        // This will throw IllegalArgumentException with Sequence contains too many elements
+        Observable.range(1, 10).single()
+                  .subscribe(singleEvent -> logger.info("GOT {}", singleEvent),
+                             e -> logger.error("ERROR!", e));
     }
 }
