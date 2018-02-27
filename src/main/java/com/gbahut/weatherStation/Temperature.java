@@ -16,4 +16,22 @@ public class Temperature
         return temperature;
     }
 
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+
+        Temperature that = (Temperature) o;
+
+        return temperature == that.temperature;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return temperature;
+    }
 }

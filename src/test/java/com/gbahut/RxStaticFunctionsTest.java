@@ -1,7 +1,7 @@
 package com.gbahut;
 
+import io.reactivex.Observable;
 import org.junit.Test;
-import rx.Observable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

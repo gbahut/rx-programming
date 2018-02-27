@@ -1,10 +1,12 @@
 package com.gbahut;
 
+import com.gbahut.weatherStation.Temperature;
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
-import rx.Observable;
-import rx.Observer;
-import rx.Subscriber;
 
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -12,11 +14,11 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static io.reactivex.Observable.interval;
+import static io.reactivex.Observable.just;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.slf4j.LoggerFactory.getLogger;
-import static rx.Observable.interval;
-import static rx.Observable.just;
 
 /**
  * Created by gbahut on 17/02/2018.
@@ -26,6 +28,7 @@ public class MiscTest
     private static final Logger logger = getLogger(MiscTest.class);
 
     @Test
+    @Ignore // Runs long time
     public void delayedObservableTest()
         throws InterruptedException
     {
@@ -57,6 +60,8 @@ public class MiscTest
     }
 
     @Test
+    @Ignore // Runs forever
+
     public void flatMapTest()
         throws InterruptedException
     {
@@ -91,6 +96,8 @@ public class MiscTest
     }
 
     @Test
+    @Ignore // Runs forever
+
     public void mergeTest()
     {
 
@@ -123,6 +130,7 @@ public class MiscTest
      * @throws InterruptedException
      */
     @Test
+    @Ignore // Runs forever
     public void zipTest()
         throws InterruptedException
     {
@@ -135,8 +143,7 @@ public class MiscTest
                 .doOnNext(x -> logger.info("Got GREEN {}", x));
         Observable.zip(red.timestamp(),
                        green.timestamp(),
-                       (r, g) -> r.getTimestampMillis() -
-                                 g.getTimestampMillis())
+                       (r, g) -> r.time() - g.time())
                   .forEach(t -> logger.info("Diff: {}", t));
 
         SECONDS.sleep(10);
@@ -153,7 +160,7 @@ public class MiscTest
         SECONDS.sleep(1);
     }
 
-    @Test
+/*    @Test
     public void ambTest()
         throws InterruptedException
     {
@@ -163,20 +170,19 @@ public class MiscTest
         ).subscribe(logger::info);
 
         SECONDS.sleep(1);
-    }
+    }*/
 
-    private Observable<String> stream(int initialDelay, int interval,
-                                      String name)
+/*    private List<String> stream(int initialDelay, int interval,
+                                            String name)
     {
-        return Observable
-            .interval(initialDelay, interval, MILLISECONDS)
+        return
+            interval(initialDelay, interval, MILLISECONDS)
             .map(x -> name + x)
-            .doOnSubscribe(() ->
-                               logger.info("Subscribe to " + name))
+            .doOnSubscribe(disposable -> logger.info("Subscribe to " + name))
             .doOnUnsubscribe(() ->
                                  logger.info("Unsubscribe from " + name));
 
-    }
+    }*/
 
     /**
      * scan() takes two parameters: the last generated value (known as the
@@ -227,12 +233,31 @@ public class MiscTest
     public void singleTest()
     {
         // This is OK
-        Observable.just(1).single()
+        Observable.just(1).single(0)
                   .subscribe(singleEvent -> logger.info("GOT {}", singleEvent));
 
         // This will throw IllegalArgumentException with Sequence contains too many elements
-        Observable.range(1, 10).single()
+        Observable.range(1, 10).single(0)
                   .subscribe(singleEvent -> logger.info("GOT {}", singleEvent),
                              e -> logger.error("ERROR!", e));
+    }
+
+    /**
+     * Similar to Camel Idempotent repository, although no retention policy
+     * applied. WARNING: Memory leaks!!
+     */
+    @Test
+    public void distinctTest()
+    {
+
+        Observable.just(1, 2, 2, 3, 4, 4, 4, 5)
+                  .distinct().subscribe(event -> logger.info("GOT {}", event));
+
+        Temperature t1 = new Temperature(10);
+        Temperature t2 = new Temperature(20);
+        Temperature t3 = new Temperature(30);
+
+        Observable.just(t1, t2, t2, t1, t1, t1, t1, t3, t3, t3)
+                  .distinct().subscribe(event -> logger.info("GOT {}", event));
     }
 }
