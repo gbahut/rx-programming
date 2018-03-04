@@ -7,6 +7,8 @@ import io.reactivex.observables.ConnectableObservable;
 import org.junit.Test;
 import org.slf4j.Logger;
 
+import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -144,6 +146,140 @@ public class Rx2Test
 
         logger.info("NO MORE EVENTS ARE LOGGED!");
         Thread.sleep(3000);
+    }
+
+    @Test
+    public void skipFilterTakeTest()
+    {
+
+        Observable.range(1, 100).filter(i -> i >= 10 && i <= 20)
+                  .skip(1)
+                  .take(3)
+                  .subscribe(event -> logger.info("GOT {}", event));
+
+    }
+
+    @Test
+    public void createObservableTest()
+    {
+
+        Observable<Integer> onTest = Observable.create(observableEmitter -> {
+            try {
+                for (int i = 0; i < 1000; i++) {
+                    while (!observableEmitter.isDisposed()) {
+                        observableEmitter.onNext(i);
+                    }
+                    if (observableEmitter.isDisposed())
+                        return;
+
+                }
+                observableEmitter.onComplete();
+            } catch (Throwable e) {
+                observableEmitter.onError(e);
+            }
+        });
+        logger.info("Starting subscription...");
+
+        Disposable disposable = runDisposable(onTest);
+
+        logger.info("Cancelling subscription...");
+
+        disposable.dispose();
+    }
+
+    /**
+     * This call is blocking. We must change it to run async.
+     *
+     * @param onTest
+     * @return
+     */
+    private Disposable runDisposable(Observable<Integer> onTest)
+    {
+        return onTest.subscribe(event -> {
+            logger.info("GOT event {}", event);
+            Thread.sleep(1000);
+        });
+    }
+
+    /**
+     * onErrorReturn, intercepts an error and let you return an item. If you
+     * don't need the throwable, then use onErrorReturnItem instead.
+     */
+    @Test
+    public void onErrorReturnTest()
+    {
+        logger.info("Using onErrorReturn");
+        Observable.just(5, 2, 4, 0, 3, 2, 8)
+                  .map(i -> 10 / i)
+                  .onErrorReturn(e -> {
+                      logger.error("GOT ERROR", e);
+                      return -1;
+                  })
+                  .subscribe(i -> System.out.println("RECEIVED: " + i),
+                             e -> System.out.println("RECEIVED ERROR: " + e)
+                  );
+
+        logger.info("Using onErrorReturnItem");
+        Observable.just(5, 2, 4, 0, 3, 2, 8)
+                  .map(i -> 10 / i)
+                  .onErrorReturnItem(-1)
+                  .subscribe(i -> System.out.println("RECEIVED: " + i),
+                             e -> System.out.println("RECEIVED ERROR: " + e)
+                  );
+    }
+
+    /**
+     * Retry will re-subscribe to the original Observable every time it
+     * encounters an error. There are overloaded versions that will retry a
+     * maximum number of times or accepts a Predicate to conditionally control
+     * when retry is attempted.
+     */
+    @Test
+    public void retryTest()
+    {
+
+        Random random = new Random();
+
+        Observable.just("hola", "que", "tal")
+                  .startWith("SUBSCRIBING!")
+                  .doOnNext(event -> logger.info("got {}", event))
+                  .map(String::length)
+                  .doAfterNext(event -> logger.info("event processed"))
+                  .map(i -> {
+                      logger.info("got {}", i);
+                      int divisor = random.nextInt() % 2;
+                      logger.info("dividing by {}", divisor);
+                      return i / divisor;
+                  })
+                  .retry()
+                  .subscribe(event -> logger.info("GOT {}", event));
+    }
+
+    /**
+     * The doOnNext, doAfterNext, doOnComplete, doOnError, ect (or the wrap all
+     * doOnEach) operators does not affect the operation or transform the
+     * emissions in any way. We just create a side-effect for each event that
+     * occurs at that point in the chain
+     */
+    @Test
+    public void onErrorTest()
+    {
+        Observable.just(1, 2, 3, 4, 5)
+                  .doAfterTerminate(
+                      () -> logger.info("Source completed emissions"))
+                  .doOnNext(event -> logger.info("Got emission: {}", event))
+                  .map(i -> i + 100)
+                  .subscribe(event -> logger.info("GOT {}", event));
+
+        Observable.fromCallable(() -> Arrays.asList(5, 2 / 0, 4, 0, 3, 2, 8))
+                  .doOnError(e -> System.out.println("Source failed!"))
+                  .map(i -> Observable.fromIterable(i))
+                  .doOnError(e -> System.out.println("Division failed!"))
+                  .subscribe(i -> System.out.println("RECEIVED: " + i),
+                             e -> System.out.println("RECEIVED ERROR: " + e)
+                  );
 
     }
 }
+
+
