@@ -4,6 +4,7 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.observables.ConnectableObservable;
+import io.reactivex.observables.GroupedObservable;
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -278,7 +279,23 @@ public class Rx2Test
                   .subscribe(i -> System.out.println("RECEIVED: " + i),
                              e -> System.out.println("RECEIVED ERROR: " + e)
                   );
+    }
 
+    @Test
+    public void groupingTest()
+    {
+
+        Observable<GroupedObservable<Integer, String>> grouping =
+            Observable.just("hola", "que", "tal", "estas", "hoy")
+                      .groupBy(s -> s.length());
+
+        grouping.flatMapSingle(GroupedObservable::toList)
+                .subscribe(event -> logger.info("GOT {}", event));
+
+        grouping.flatMapSingle(grp -> grp
+            .reduce("", (s1, s2) -> s1.equals("") ? s2 : s1 + "," + s2)
+            .map(s -> grp.getKey() + ": " + s))
+                .subscribe(event -> logger.info("GOT {}", event));
     }
 }
 
